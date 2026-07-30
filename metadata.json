@@ -1,0 +1,6 @@
+{
+  "name": "Absensi SMKN 1 Cirinten",
+  "description": "Aplikasi Absensi Siswa SMKN 1 Cirinten - Jurusan AKL & MPLB, Pengelompokan Kelas, Integrasi Mapel, dan Rekap Laporan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
