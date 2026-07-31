@@ -1,9 +1,14 @@
 package com.example.ui.screens
 
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -51,6 +56,8 @@ fun HomeScreen(
     val teacherNip by viewModel.teacherNip.collectAsState()
     val teacherSubject by viewModel.teacherSubject.collectAsState()
     val schoolName by viewModel.schoolName.collectAsState()
+    val activeAcademicYear by viewModel.activeAcademicYear.collectAsState()
+    val activeSemester by viewModel.activeSemester.collectAsState()
     val criticalAlpaStudents by viewModel.criticalAlpaStudents.collectAsState()
 
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -61,6 +68,8 @@ fun HomeScreen(
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showCriticalAlpaDialog by remember { mutableStateOf(false) }
     var showHistoryDialog by remember { mutableStateOf(false) }
+    var showUserGuideDialog by remember { mutableStateOf(false) }
+    var showArchiveDialog by remember { mutableStateOf(false) }
 
     val currentDateStr = remember {
         val sdf = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID"))
@@ -84,13 +93,13 @@ fun HomeScreen(
                 title = {
                     Column {
                         Text(
-                            text = "SMKN 1 Cirinten",
+                            text = schoolName.ifBlank { "SMKN 1 Cirinten" },
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
                         Text(
-                            text = "Presensi Siswa • $currentDateStr",
-                            fontSize = 12.sp,
+                            text = "Presensi Siswa • $currentDateStr • TA $activeAcademicYear ($activeSemester)",
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -112,16 +121,6 @@ fun HomeScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showQuickStartDialog = true },
-                icon = { Icon(Icons.Default.AddTask, contentDescription = null) },
-                text = { Text("Input Absensi", fontWeight = FontWeight.Bold) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.testTag("quick_input_fab")
             )
         },
         modifier = modifier
@@ -194,7 +193,7 @@ fun HomeScreen(
                                             )
                                         }
                                         Text(
-                                            text = "$schoolName • $teacherSubject",
+                                            text = if (teacherSubject.isNotBlank()) "Pengampu $teacherSubject • TA $activeAcademicYear ($activeSemester)" else "Guru Pengampu • TA $activeAcademicYear ($activeSemester)",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = Color.White.copy(alpha = 0.95f)
@@ -367,86 +366,115 @@ fun HomeScreen(
                 }
             }
 
-            // Quick Access History & Correction Card
+            // Main Menu Grid Section (6 Fitur Utama)
             item {
-                Card(
-                    onClick = { showHistoryDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("open_history_card"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                    )
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        Text(
+                            text = "⚡ Menu Utama Aplikasi",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(42.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.ManageHistory, contentDescription = null, tint = Color.White)
-                                }
-                            }
-                            Column {
-                                Text("Histori Absen (Harian & Mingguan)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                Text("Cek riwayat kemarin, tangani komplen & koreksi status", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            Text(
+                                text = "TA $activeAcademicYear ($activeSemester)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
-
-                        Icon(Icons.Default.ArrowForwardIos, contentDescription = null, modifier = Modifier.size(16.dp))
                     }
-                }
-            }
 
-            // Quick Access Schedule & Alarm Card
-            item {
-                Card(
-                    onClick = onNavigateToSchedule,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-                    )
-                ) {
+                    // Row 1: Presensi & Arsip Periode
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.size(42.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Schedule, contentDescription = null, tint = Color.White)
-                                }
-                            }
-                            Column {
-                                Text("Jadwal & Alarm Mengajar", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                Text("${allSchedules.size} Sesi terdaftar • Bunyikan Bel Sesi", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
+                        MainMenuGridCard(
+                            title = "Input Presensi",
+                            subtitle = "Mulai Absen & Jurnal",
+                            icon = Icons.Default.PlayCircle,
+                            badgeText = "Mulai",
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { showQuickStartDialog = true }
+                        )
 
-                        Icon(Icons.Default.ArrowForwardIos, contentDescription = null, modifier = Modifier.size(16.dp))
+                        MainMenuGridCard(
+                            title = "Arsip & Periode",
+                            subtitle = "Ganti Semester / TA",
+                            icon = Icons.Default.Inventory2,
+                            badgeText = "Arsip",
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            iconColor = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { showArchiveDialog = true }
+                        )
+                    }
+
+                    // Row 2: Panduan & Jadwal Alarm
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        MainMenuGridCard(
+                            title = "Panduan Aplikasi",
+                            subtitle = "Petunjuk + Gambar",
+                            icon = Icons.Default.MenuBook,
+                            badgeText = "Buku PDF",
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconColor = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { showUserGuideDialog = true }
+                        )
+
+                        MainMenuGridCard(
+                            title = "Jadwal & Alarm",
+                            subtitle = "${allSchedules.size} Sesi Mengajar",
+                            icon = Icons.Default.Schedule,
+                            badgeText = "Jadwal",
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            iconColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToSchedule
+                        )
+                    }
+
+                    // Row 3: Rekap Laporan & Histori Koreksi
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        MainMenuGridCard(
+                            title = "Rekap & Laporan",
+                            subtitle = "Export Excel & WA",
+                            icon = Icons.Default.Assessment,
+                            badgeText = "Laporan",
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                            iconColor = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToReports
+                        )
+
+                        MainMenuGridCard(
+                            title = "Histori & Koreksi",
+                            subtitle = "${allSessions.size} Sesi Terdaftar",
+                            icon = Icons.Default.ManageHistory,
+                            badgeText = "Histori",
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                            iconColor = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { showHistoryDialog = true }
+                        )
                     }
                 }
             }
@@ -521,7 +549,7 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Klik tombol 'Input Absensi' untuk memulai pencatatan.",
+                                text = "Gunakan menu Jadwal atau Kelas & Siswa untuk melakukan presensi.",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             )
@@ -582,7 +610,7 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Versi 1.0.0 • Siap Diuji & Diinstal di HP",
+                            text = "Versi 1.1.0",
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                         )
@@ -598,6 +626,7 @@ fun HomeScreen(
 
     // Quick Select Class Dialog
     if (showQuickStartDialog) {
+        val majorsList by viewModel.majorsList.collectAsState()
         var selectedMajorFilter by remember { mutableStateOf("SEMUA") }
 
         val filteredClasses = remember(allClasses, selectedMajorFilter) {
@@ -612,38 +641,44 @@ fun HomeScreen(
                 if (allClasses.isEmpty()) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text("Belum ada kelas terdaftar.")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(onClick = {
+                        Text("⚠️ Master Data Belum Lengkap", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "Silakan lengkapi Master Data (Profil, Kelas, Mapel, dan Siswa) di menu Pengaturan & Master Data terlebih dahulu agar data terpusat.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(onClick = {
                             showQuickStartDialog = false
-                            onNavigateToClasses()
+                            onOpenSettings()
                         }) {
-                            Text("+ Tambah Kelas Baru")
+                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Buka Pengaturan Master Data")
                         }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
+                        LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            FilterChip(
-                                selected = selectedMajorFilter == "SEMUA",
-                                onClick = { selectedMajorFilter = "SEMUA" },
-                                label = { Text("Semua") }
-                            )
-                            FilterChip(
-                                selected = selectedMajorFilter == "AKL",
-                                onClick = { selectedMajorFilter = "AKL" },
-                                label = { Text("AKL") }
-                            )
-                            FilterChip(
-                                selected = selectedMajorFilter == "MPLB",
-                                onClick = { selectedMajorFilter = "MPLB" },
-                                label = { Text("MPLB") }
-                            )
+                            item {
+                                FilterChip(
+                                    selected = selectedMajorFilter == "SEMUA",
+                                    onClick = { selectedMajorFilter = "SEMUA" },
+                                    label = { Text("Semua") }
+                                )
+                            }
+                            items(majorsList) { mj ->
+                                FilterChip(
+                                    selected = selectedMajorFilter == mj,
+                                    onClick = { selectedMajorFilter = mj },
+                                    label = { Text(mj) }
+                                )
+                            }
                         }
 
                         if (filteredClasses.isEmpty()) {
@@ -731,9 +766,12 @@ fun HomeScreen(
             currentNip = teacherNip,
             currentSubject = teacherSubject,
             currentSchool = schoolName,
+            currentAcademicYear = activeAcademicYear,
+            currentSemester = activeSemester,
             onDismiss = { showEditProfileDialog = false },
-            onSave = { name, nip, subject, school ->
+            onSave = { name, nip, subject, school, year, sem ->
                 viewModel.updateTeacherProfile(name, nip, subject, school)
+                viewModel.updateActiveAcademicPeriod(year, sem)
                 showEditProfileDialog = false
             }
         )
@@ -762,6 +800,24 @@ fun HomeScreen(
             onDismiss = { showHistoryDialog = false }
         )
     }
+
+    if (showUserGuideDialog) {
+        UserGuideDialog(
+            teacherName = teacherName,
+            schoolName = schoolName,
+            onDismiss = { showUserGuideDialog = false }
+        )
+    }
+
+    if (showArchiveDialog) {
+        AcademicPeriodArchiveDialog(
+            activeYear = activeAcademicYear,
+            activeSemester = activeSemester,
+            onDismiss = { showArchiveDialog = false },
+            onSavePeriod = { y, s -> viewModel.updateActiveAcademicPeriod(y, s) },
+            onArchiveAndSwitch = { y, s -> viewModel.archiveAcademicYearAndSwitch(y, s) }
+        )
+    }
 }
 
 @Composable
@@ -770,13 +826,17 @@ fun EditTeacherProfileDialog(
     currentNip: String,
     currentSubject: String,
     currentSchool: String,
+    currentAcademicYear: String = "2025/2026",
+    currentSemester: String = "Ganjil",
     onDismiss: () -> Unit,
-    onSave: (String, String, String, String) -> Unit
+    onSave: (String, String, String, String, String, String) -> Unit
 ) {
     var nameInput by remember { mutableStateOf(currentName) }
     var nipInput by remember { mutableStateOf(currentNip) }
     var subjectInput by remember { mutableStateOf(currentSubject) }
     var schoolInput by remember { mutableStateOf(currentSchool) }
+    var academicYearInput by remember { mutableStateOf(currentAcademicYear) }
+    var semesterInput by remember { mutableStateOf(currentSemester) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -790,7 +850,7 @@ fun EditTeacherProfileDialog(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("Edit Profil Guru", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Edit Profil Guru & Periode", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         },
         text = {
@@ -801,7 +861,7 @@ fun EditTeacherProfileDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    "Informasi profil ini akan ditampilkan di halaman utama serta digunakan pada laporan resmi.",
+                    "Informasi profil dan Tahun Ajaran ini akan ditampilkan di halaman utama serta laporan.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -826,7 +886,7 @@ fun EditTeacherProfileDialog(
                     value = subjectInput,
                     onValueChange = { subjectInput = it },
                     label = { Text("Mata Pelajaran Pengampu") },
-                    supportingText = { Text("Pisahkan dengan koma jika mengampu lebih dari 1 mapel (misal: Praktik Akuntansi, Spreadsheet, Perpajakan)", fontSize = 10.sp) },
+                    supportingText = { Text("Pisahkan dengan koma jika mengampu lebih dari 1 mapel (misal: Praktik Akuntansi, Perpajakan)", fontSize = 10.sp) },
                     singleLine = false,
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth().testTag("profile_subject_input")
@@ -839,6 +899,40 @@ fun EditTeacherProfileDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("profile_school_input")
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text("📅 Tahun Ajaran & Semester Aktif", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = academicYearInput,
+                        onValueChange = { academicYearInput = it },
+                        label = { Text("Tahun Ajaran") },
+                        placeholder = { Text("2026/2027") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1.2f).testTag("profile_year_input")
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Semester", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            FilterChip(
+                                selected = semesterInput.equals("Ganjil", ignoreCase = true),
+                                onClick = { semesterInput = "Ganjil" },
+                                label = { Text("Ganjil", fontSize = 11.sp) }
+                            )
+                            FilterChip(
+                                selected = semesterInput.equals("Genap", ignoreCase = true),
+                                onClick = { semesterInput = "Genap" },
+                                label = { Text("Genap", fontSize = 11.sp) }
+                            )
+                        }
+                    }
+                }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
@@ -870,10 +964,12 @@ fun EditTeacherProfileDialog(
                         nameInput.ifBlank { "Nama Guru" },
                         nipInput,
                         subjectInput.ifBlank { "Guru Pengampu" },
-                        schoolInput.ifBlank { "SMKN 1 Cirinten" }
+                        schoolInput.ifBlank { "SMKN 1 Cirinten" },
+                        academicYearInput.ifBlank { "2025/2026" },
+                        semesterInput
                     )
                 },
-                enabled = nameInput.isNotBlank()
+                enabled = nameInput.isNotBlank() && academicYearInput.isNotBlank()
             ) {
                 Text("Simpan Perubahan")
             }
@@ -1205,4 +1301,486 @@ fun sendWarningLetterViaWhatsApp(
     }
     val shareIntent = android.content.Intent.createChooser(sendIntent, "Kirim Surat Peringatan Siswa")
     context.startActivity(shareIntent)
+}
+
+@Composable
+fun MainMenuGridCard(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    badgeText: String,
+    containerColor: Color,
+    iconColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.testTag("menu_grid_${title.lowercase().replace(" ", "_")}"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = iconColor,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = iconColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = badgeText,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = iconColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun UserGuideDialog(
+    teacherName: String,
+    schoolName: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedTab by remember { mutableStateOf(0) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "📖 Buku Panduan Aplikasi",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                }
+                Text(
+                    text = "Petunjuk penggunaan lengkap presensi, jurnal, & pengarsipan",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = com.example.R.drawable.img_guide_banner),
+                        contentDescription = "Panduan Aplikasi",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                ScrollableTabRow(
+                    selectedTabIndex = selectedTab,
+                    edgePadding = 0.dp,
+                    divider = {}
+                ) {
+                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
+                        Text("🚀 Presensi & KBM", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                    }
+                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
+                        Text("⭐ Poin Disiplin", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                    }
+                    Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 }) {
+                        Text("🗄️ Arsip & Semester", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                    }
+                    Tab(selected = selectedTab == 3, onClick = { selectedTab = 3 }) {
+                        Text("📊 Laporan & Excel", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                    }
+                    Tab(selected = selectedTab == 4, onClick = { selectedTab = 4 }) {
+                        Text("🔐 PIN Keamanan", fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                    }
+                }
+
+                when (selectedTab) {
+                    0 -> GuidePresensiSection()
+                    1 -> GuideDisciplineSection()
+                    2 -> GuideArchiveSection()
+                    3 -> GuideReportSection()
+                    4 -> GuideSecuritySection()
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    com.example.util.PdfGuideGenerator.generateAndOpenManualPdf(
+                        context = context,
+                        teacherName = teacherName,
+                        schoolName = schoolName
+                    )
+                },
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Cetak PDF Panduan")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Tutup")
+            }
+        }
+    )
+}
+
+@Composable
+private fun GuidePresensiSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        GuideStepCard(
+            stepNumber = "1",
+            title = "Pilih Kelas & Sesi Mengajar",
+            description = "Klik 'Input Presensi' di menu utama, lalu pilih kelas dan mata pelajaran yang sedang diajarkan."
+        )
+
+        GuideStepCard(
+            stepNumber = "2",
+            title = "Tandai Kehadiran Siswa",
+            description = "Tandai status dengan sekali tap:\n• 🟢 Hadir\n• 🟡 Sakit\n• 🔵 Izin\n• 🔴 Alpa"
+        )
+
+        GuideStepCard(
+            stepNumber = "3",
+            title = "Isi Jurnal & Pokok Bahasan KBM",
+            description = "Ketik Pokok Bahasan / Materi Pembelajaran dan Catatan Kejadian KBM pada formulir bagian atas layar."
+        )
+
+        GuideStepCard(
+            stepNumber = "4",
+            title = "Simpan & Kirim Rekap WA",
+            description = "Klik 'Simpan Presensi'. Kemudian tekan tombol 'Kirim Rekap WA' untuk mengirimkan pesan rapi ke WhatsApp Group Kelas/Orang Tua."
+        )
+    }
+}
+
+@Composable
+private fun GuideDisciplineSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("⭐ Sistem Poin Kedisiplinan", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                Text("Setiap siswa baru dibekali 100 Poin Kedisiplinan Awal.", fontSize = 11.sp)
+            }
+        }
+
+        GuideStepCard(
+            stepNumber = "•",
+            title = "Catat Pelanggaran / Keaktifan",
+            description = "Saat presensi, tekan ikon catatan (📝) di samping nama siswa untuk menambahkan:\n• Terlambat (-5 Poin)\n• Pelanggaran / Cabut (-10 Poin)\n• Prestasi / Keaktifan (+5 Poin)"
+        )
+
+        GuideStepCard(
+            stepNumber = "🚨",
+            title = "Deteksi Otomatis Alpa ≥ 3 Kali",
+            description = "Jika siswa mencapai ≥ 3 kali Alpa, beranda utama akan menampilkan Kartu Peringatan Merah secara otomatis.\n\nAnda dapat langsung menekan 'Kirim SP (WA)' untuk membuat Surat Panggilan Wali murid!"
+        )
+    }
+}
+
+@Composable
+private fun GuideArchiveSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("🗄️ Pergantian Semester & Pengarsipan", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                Text("Data semester lama tersimpan rapi dan tidak akan pernah terhapus!", fontSize = 11.sp)
+            }
+        }
+
+        GuideStepCard(
+            stepNumber = "1",
+            title = "Buka Menu 'Arsip & Periode'",
+            description = "Tekan tombol 'Arsip & Periode' pada grid menu utama beranda."
+        )
+
+        GuideStepCard(
+            stepNumber = "2",
+            title = "Set Tahun Ajaran & Semester Baru",
+            description = "Masukkan Tahun Ajaran baru (misal 2026/2027) dan pilih Semester (Ganjil/Genap)."
+        )
+
+        GuideStepCard(
+            stepNumber = "3",
+            title = "Ganti Periode & Arsipkan",
+            description = "Klik 'Ganti Periode & Arsipkan'. Data presensi semester lalu otomatis tersimpan aman di database arsip."
+        )
+    }
+}
+
+@Composable
+private fun GuideReportSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        GuideStepCard(
+            stepNumber = "📊",
+            title = "Export File Excel & PDF",
+            description = "Masuk ke menu 'Rekap & Laporan'. Anda dapat mengunduh Laporan Excel (.xlsx) atau mencetak Dokumen Rekap PDF resmi untuk sekolah."
+        )
+
+        GuideStepCard(
+            stepNumber = "💬",
+            title = "Format Pesan WA Rapi",
+            description = "Laporan dapat dibagikan langsung ke grup WhatsApp dengan format ringkasan persentase kehadiran."
+        )
+    }
+}
+
+@Composable
+private fun GuideSecuritySection() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        GuideStepCard(
+            stepNumber = "🔐",
+            title = "PIN Keamanan Aplikasi",
+            description = "Aktifkan PIN Keamanan di menu Kelola Data / Profil untuk melestarikan dan mengamankan data presensi guru dari pengguna yang tidak berwenang."
+        )
+    }
+}
+
+@Composable
+private fun GuideStepCard(
+    stepNumber: String,
+    title: String,
+    description: String
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stepNumber,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(
+                    text = description,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 15.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AcademicPeriodArchiveDialog(
+    activeYear: String,
+    activeSemester: String,
+    onDismiss: () -> Unit,
+    onSavePeriod: (String, String) -> Unit,
+    onArchiveAndSwitch: (String, String) -> Unit
+) {
+    var yearInput by remember(activeYear) { mutableStateOf(activeYear) }
+    var semInput by remember(activeSemester) { mutableStateOf(activeSemester) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Inventory2,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("🗄️ Arsip & Periode Semester", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "📌 Periode Aktif Saat Ini:",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Tahun Ajaran $activeYear — Semester $activeSemester",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("ℹ️ Cara Kerja Fitur Arsip:", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text("• Data presensi & jurnal semester sebelumnya tersimpan aman di database lokal.", fontSize = 10.sp)
+                        Text("• Anda dapat melihat & cetak rekap periode lama kapan saja di menu Laporan.", fontSize = 10.sp)
+                        Text("• Masukkan Tahun Ajaran dan Semester baru di bawah ini saat memasuki ajaran baru.", fontSize = 10.sp)
+                    }
+                }
+
+                OutlinedTextField(
+                    value = yearInput,
+                    onValueChange = { yearInput = it },
+                    label = { Text("Tahun Ajaran (Contoh: 2026/2027)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text("Semester Baru:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = semInput.equals("Ganjil", ignoreCase = true),
+                        onClick = { semInput = "Ganjil" },
+                        label = { Text("Ganjil") }
+                    )
+                    FilterChip(
+                        selected = semInput.equals("Genap", ignoreCase = true),
+                        onClick = { semInput = "Genap" },
+                        label = { Text("Genap") }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(
+                    onClick = {
+                        if (yearInput.isNotBlank()) {
+                            onArchiveAndSwitch(yearInput, semInput)
+                            onDismiss()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Inventory2, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Ganti Periode & Arsipkan")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        if (yearInput.isNotBlank()) {
+                            onSavePeriod(yearInput, semInput)
+                            onDismiss()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Simpan Periode Ini Saja")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                Text("Batal")
+            }
+        }
+    )
 }

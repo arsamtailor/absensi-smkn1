@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,10 +31,13 @@ import com.example.ui.theme.HighDensityOutline
 fun ClassManagementScreen(
     viewModel: AttendanceViewModel,
     onStartTakeAttendance: (ClassGroup) -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val allClasses by viewModel.allClasses.collectAsState()
     val allStudents by viewModel.allStudents.collectAsState()
+    val majorsList by viewModel.majorsList.collectAsState()
+    val activeAcademicYear by viewModel.activeAcademicYear.collectAsState()
 
     var selectedClass by remember { mutableStateOf<ClassGroup?>(null) }
 
@@ -44,6 +48,7 @@ fun ClassManagementScreen(
     var showAddStudentDialog by remember { mutableStateOf(false) }
     var studentToEdit by remember { mutableStateOf<Student?>(null) }
     var showBulkImportDialog by remember { mutableStateOf(false) }
+    var showSettingsPromptDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -61,62 +66,10 @@ fun ClassManagementScreen(
                         }
                     }
                 },
-                actions = {
-                    if (selectedClass == null) {
-                        IconButton(
-                            onClick = {
-                                classToEdit = null
-                                showAddClassDialog = true
-                            },
-                            modifier = Modifier.testTag("add_class_appbar_btn")
-                        ) {
-                            Icon(Icons.Default.AddBusiness, contentDescription = "Tambah Kelas")
-                        }
-                    } else {
-                        val currentCls = selectedClass
-                        if (currentCls != null) {
-                            IconButton(
-                                onClick = { showBulkImportDialog = true },
-                                modifier = Modifier.testTag("bulk_import_students_btn")
-                            ) {
-                                Icon(Icons.Default.GroupAdd, contentDescription = "Impor Masal")
-                            }
-                            IconButton(
-                                onClick = { onStartTakeAttendance(currentCls) },
-                                modifier = Modifier.testTag("take_attendance_for_class_btn")
-                            ) {
-                                Icon(Icons.Default.PlaylistAddCheck, contentDescription = "Input Absensi")
-                            }
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        },
-        floatingActionButton = {
-            if (selectedClass == null) {
-                FloatingActionButton(
-                    onClick = {
-                        classToEdit = null
-                        showAddClassDialog = true
-                    },
-                    modifier = Modifier.testTag("add_class_fab")
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Tambah Kelas")
-                }
-            } else {
-                FloatingActionButton(
-                    onClick = {
-                        studentToEdit = null
-                        showAddStudentDialog = true
-                    },
-                    modifier = Modifier.testTag("add_student_fab")
-                ) {
-                    Icon(Icons.Default.PersonAdd, contentDescription = "Tambah Siswa")
-                }
-            }
         },
         modifier = modifier
     ) { innerPadding ->
@@ -135,6 +88,31 @@ fun ClassManagementScreen(
                 }
 
                 Column(modifier = Modifier.fillMaxSize()) {
+                    // Master Data Centralized Banner (Slim)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Text(
+                                text = "🔒 Data kelas & siswa dikelola terpusat di menu Pengaturan Master Data.",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
                     // Major Filter Bar
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
@@ -148,29 +126,30 @@ fun ClassManagementScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Jurusan:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            FilterChip(
-                                selected = selectedMajorFilter == "SEMUA",
-                                onClick = { selectedMajorFilter = "SEMUA" },
-                                label = { Text("Semua") }
-                            )
-                            FilterChip(
-                                selected = selectedMajorFilter == "AKL",
-                                onClick = { selectedMajorFilter = "AKL" },
-                                label = { Text("AKL (Akuntansi)") }
-                            )
-                            FilterChip(
-                                selected = selectedMajorFilter == "MPLB",
-                                onClick = { selectedMajorFilter = "MPLB" },
-                                label = { Text("MPLB (Perkantoran)") }
-                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                item {
+                                    FilterChip(
+                                        selected = selectedMajorFilter == "SEMUA",
+                                        onClick = { selectedMajorFilter = "SEMUA" },
+                                        label = { Text("Semua") }
+                                    )
+                                }
+                                items(majorsList) { mj ->
+                                    FilterChip(
+                                        selected = selectedMajorFilter == mj,
+                                        onClick = { selectedMajorFilter = mj },
+                                        label = { Text(mj) }
+                                    )
+                                }
+                            }
                         }
                     }
 
                     if (allClasses.isEmpty()) {
-                        EmptyClassState(onAddClass = {
-                            classToEdit = null
-                            showAddClassDialog = true
-                        })
+                        EmptyClassState(onOpenSettings = onOpenSettings)
                     } else if (filteredClasses.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -195,11 +174,7 @@ fun ClassManagementScreen(
                                     classGroup = classGroup,
                                     studentCount = studentCount,
                                     onClick = { selectedClass = classGroup },
-                                    onEdit = {
-                                        classToEdit = classGroup
-                                        showAddClassDialog = true
-                                    },
-                                    onDelete = { viewModel.deleteClass(classGroup) },
+                                    onOpenSettings = onOpenSettings,
                                     onTakeAttendance = { onStartTakeAttendance(classGroup) }
                                 )
                             }
@@ -253,10 +228,7 @@ fun ClassManagementScreen(
                     }
 
                     if (studentsInClass.isEmpty()) {
-                        EmptyStudentState(onAddStudent = {
-                            studentToEdit = null
-                            showAddStudentDialog = true
-                        })
+                        EmptyStudentState(onOpenSettings = onOpenSettings)
                     } else {
                         LazyColumn(
                             modifier = Modifier
@@ -268,11 +240,7 @@ fun ClassManagementScreen(
                             items(studentsInClass) { student ->
                                 StudentCard(
                                     student = student,
-                                    onEdit = {
-                                        studentToEdit = student
-                                        showAddStudentDialog = true
-                                    },
-                                    onDelete = { viewModel.deleteStudent(student) }
+                                    onOpenSettings = onOpenSettings
                                 )
                             }
                         }
@@ -286,6 +254,8 @@ fun ClassManagementScreen(
     if (showAddClassDialog) {
         AddEditClassDialog(
             classGroup = classToEdit,
+            defaultAcademicYear = activeAcademicYear,
+            majorsList = majorsList,
             onDismiss = { showAddClassDialog = false },
             onSave = { name, academicYear, major, description ->
                 viewModel.addOrUpdateClass(
@@ -331,6 +301,32 @@ fun ClassManagementScreen(
             }
         )
     }
+
+    if (showSettingsPromptDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsPromptDialog = false },
+            icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Master Kelas & Siswa", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Penambahan, pengeditan, dan penghapusan kelas serta data siswa dikelola secara terpusat di menu Pengaturan Master Data.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSettingsPromptDialog = false
+                        onOpenSettings()
+                    }
+                ) {
+                    Text("Buka Pengaturan Master Data")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSettingsPromptDialog = false }) {
+                    Text("Tutup")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -338,12 +334,9 @@ fun ClassGroupCard(
     classGroup: ClassGroup,
     studentCount: Int,
     onClick: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
+    onOpenSettings: () -> Unit,
     onTakeAttendance: () -> Unit
 ) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -413,15 +406,6 @@ fun ClassGroupCard(
                         )
                     }
                 }
-
-                Row {
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Kelas", tint = MaterialTheme.colorScheme.primary)
-                    }
-                    IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Hapus Kelas", tint = MaterialTheme.colorScheme.error)
-                    }
-                }
             }
 
             if (classGroup.description.isNotBlank()) {
@@ -466,40 +450,13 @@ fun ClassGroupCard(
             }
         }
     }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Hapus Kelas ${classGroup.name}?") },
-            text = { Text("Menghapus kelas ini juga akan menghapus seluruh data siswa dan riwayat presensi terkait.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirm = false
-                        onDelete()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Hapus Permanent")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Batal")
-                }
-            }
-        )
-    }
 }
 
 @Composable
 fun StudentCard(
     student: Student,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpenSettings: () -> Unit
 ) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
     val initials = remember(student.name) {
         student.name.split(" ")
             .filter { it.isNotBlank() }
@@ -555,45 +512,12 @@ fun StudentCard(
                     )
                 }
             }
-
-            Row {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Siswa", modifier = Modifier.size(18.dp))
-                }
-                IconButton(onClick = { showDeleteConfirm = true }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Hapus Siswa", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                }
-            }
         }
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Hapus Siswa?") },
-            text = { Text("Apakah Anda yakin ingin menghapus ${student.name} dari kelas ini?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirm = false
-                        onDelete()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Hapus")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Batal")
-                }
-            }
-        )
     }
 }
 
 @Composable
-fun EmptyClassState(onAddClass: () -> Unit) {
+fun EmptyClassState(onOpenSettings: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -615,22 +539,22 @@ fun EmptyClassState(onAddClass: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Tambahkan kelas baru untuk mulai memasukkan daftar siswa dan presensi.",
+            text = "Master data kelas dikelola terpusat melalui menu Pengaturan.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         Spacer(modifier = Modifier.height(20.dp))
-        Button(onClick = onAddClass) {
-            Icon(Icons.Default.Add, contentDescription = null)
+        Button(onClick = onOpenSettings) {
+            Icon(Icons.Default.Settings, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Tambah Kelas Pertama")
+            Text("Buka Pengaturan Master Data")
         }
     }
 }
 
 @Composable
-fun EmptyStudentState(onAddStudent: () -> Unit) {
+fun EmptyStudentState(onOpenSettings: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -652,15 +576,15 @@ fun EmptyStudentState(onAddStudent: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Tambahkan anggota siswa untuk kelas ini.",
+            text = "Data dan impor siswa dikelola terpusat di menu Pengaturan.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onAddStudent) {
-            Icon(Icons.Default.PersonAdd, contentDescription = null)
+        Button(onClick = onOpenSettings) {
+            Icon(Icons.Default.Settings, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Tambah Siswa Baru")
+            Text("Buka Pengaturan Master Data")
         }
     }
 }
@@ -668,12 +592,14 @@ fun EmptyStudentState(onAddStudent: () -> Unit) {
 @Composable
 fun AddEditClassDialog(
     classGroup: ClassGroup?,
+    defaultAcademicYear: String = "2025/2026",
+    majorsList: List<String> = listOf("AKL", "MPLB"),
     onDismiss: () -> Unit,
     onSave: (name: String, academicYear: String, major: String, description: String) -> Unit
 ) {
     var name by remember { mutableStateOf(classGroup?.name ?: "") }
-    var academicYear by remember { mutableStateOf(classGroup?.academicYear ?: "2025/2026") }
-    var major by remember { mutableStateOf(classGroup?.major ?: "AKL") }
+    var academicYear by remember { mutableStateOf(classGroup?.academicYear ?: defaultAcademicYear) }
+    var major by remember { mutableStateOf(classGroup?.major ?: (majorsList.firstOrNull() ?: "AKL")) }
     var description by remember { mutableStateOf(classGroup?.description ?: "") }
 
     AlertDialog(
@@ -686,17 +612,14 @@ fun AddEditClassDialog(
                 Column {
                     Text("Jurusan / Keahlian:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = major == "AKL",
-                            onClick = { major = "AKL" },
-                            label = { Text("AKL (Akuntansi)") }
-                        )
-                        FilterChip(
-                            selected = major == "MPLB",
-                            onClick = { major = "MPLB" },
-                            label = { Text("MPLB (Perkantoran)") }
-                        )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(majorsList) { mj ->
+                            FilterChip(
+                                selected = major == mj,
+                                onClick = { major = mj },
+                                label = { Text(mj) }
+                            )
+                        }
                     }
                 }
 

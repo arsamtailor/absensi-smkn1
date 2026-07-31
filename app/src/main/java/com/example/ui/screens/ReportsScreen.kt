@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.ClassGroup
@@ -40,13 +41,29 @@ fun ReportsScreen(
 
     val context = LocalContext.current
 
+    val allSchedules by viewModel.allSchedules.collectAsState()
+    val selectedClassGroup = allClasses.find { it.id == reportSelectedClassId }
+
     val teacherName by viewModel.teacherName.collectAsState()
     val teacherNip by viewModel.teacherNip.collectAsState()
     val schoolName by viewModel.schoolName.collectAsState()
     val rawTeacherSubject by viewModel.teacherSubject.collectAsState()
-    val teacherSubjects = remember(rawTeacherSubject) { viewModel.getTeacherSubjectList() }
+    val activeAcademicYear by viewModel.activeAcademicYear.collectAsState()
+    val activeSemester by viewModel.activeSemester.collectAsState()
 
-    val selectedClassGroup = allClasses.find { it.id == reportSelectedClassId }
+    val teacherSubjects = remember(rawTeacherSubject, allSchedules, selectedClassGroup) {
+        val classScheduleSubjects = if (selectedClassGroup != null) {
+            allSchedules.filter { it.className.equals(selectedClassGroup.name, ignoreCase = true) }
+                .map { it.subject.trim() }
+                .filter { it.isNotBlank() }
+        } else emptyList()
+
+        val allScheduleSubjects = allSchedules.map { it.subject.trim() }.filter { it.isNotBlank() }
+        val masterTeacherSubjects = viewModel.getTeacherSubjectList()
+
+        (classScheduleSubjects + allScheduleSubjects + masterTeacherSubjects)
+            .distinct()
+    }
 
     LaunchedEffect(allClasses) {
         if (reportSelectedClassId == null && allClasses.isNotEmpty()) {
@@ -76,7 +93,12 @@ fun ReportsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rekap & Laporan Absensi", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text("Rekap & Laporan Absensi", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Text("${schoolName.ifBlank { "SMKN 1 Cirinten" }} • TA $activeAcademicYear ($activeSemester)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
                 actions = {
                     if (selectedClassGroup != null && summaries.isNotEmpty()) {
                         IconButton(
@@ -167,37 +189,120 @@ fun ReportsScreen(
                     }
                 }
 
-                // Filter Periode Waktu
-                Column {
-                    Text("Periode Waktu:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(com.example.ui.ReportPeriod.values().size) { index ->
-                            val period = com.example.ui.ReportPeriod.values()[index]
-                            FilterChip(
-                                selected = reportPeriod == period,
-                                onClick = { viewModel.setReportPeriod(period) },
-                                label = { Text(period.label, fontSize = 12.sp) }
-                            )
-                        }
-                    }
+                // Filter Periode Waktu & Mata Pelajaran (Dropdown side-by-side agar hemat tempat)
+                var periodDropdownExpanded by remember { mutableStateOf(false) }
+                var subjectDropdownExpanded by remember { mutableStateOf(false) }
+                val availableSubjectFilters = remember(teacherSubjects) {
+                    listOf("Semua Mapel") + teacherSubjects
                 }
 
-                // Filter Mata Pelajaran
-                Column {
-                    Text("Filter Mata Pelajaran:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val availableSubjectFilters = remember(teacherSubjects) {
-                        listOf("Semua Mapel") + teacherSubjects
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Dropdown Periode Waktu
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedCard(
+                            onClick = { periodDropdownExpanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Periode Waktu",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = reportPeriod.label,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = periodDropdownExpanded,
+                            onDismissRequest = { periodDropdownExpanded = false }
+                        ) {
+                            com.example.ui.ReportPeriod.values().forEach { period ->
+                                DropdownMenuItem(
+                                    text = { Text(period.label, fontSize = 13.sp) },
+                                    onClick = {
+                                        viewModel.setReportPeriod(period)
+                                        periodDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
-                    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(availableSubjectFilters.size) { index ->
-                            val subFilter = availableSubjectFilters[index]
-                            FilterChip(
-                                selected = reportSelectedSubject.equals(subFilter, ignoreCase = true),
-                                onClick = { viewModel.setReportSubjectFilter(subFilter) },
-                                label = { Text(subFilter, fontSize = 12.sp) }
-                            )
+
+                    // Dropdown Mata Pelajaran
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedCard(
+                            onClick = { subjectDropdownExpanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Mata Pelajaran",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = reportSelectedSubject,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = subjectDropdownExpanded,
+                            onDismissRequest = { subjectDropdownExpanded = false }
+                        ) {
+                            availableSubjectFilters.forEach { subFilter ->
+                                DropdownMenuItem(
+                                    text = { Text(subFilter, fontSize = 13.sp) },
+                                    onClick = {
+                                        viewModel.setReportSubjectFilter(subFilter)
+                                        subjectDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -838,6 +943,6 @@ private fun shareReportText(
         putExtra(Intent.EXTRA_TEXT, sb.toString())
         type = "text/plain"
     }
-    val shareIntent = Intent.createChooser(sendIntent, "Bagikan Rekap Presensi SMKN 1 Cirinten")
+    val shareIntent = Intent.createChooser(sendIntent, "Bagikan Rekap Presensi $schoolName")
     context.startActivity(shareIntent)
 }

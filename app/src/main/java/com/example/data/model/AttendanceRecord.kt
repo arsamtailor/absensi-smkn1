@@ -28,5 +28,7 @@ data class AttendanceRecord(
     val sessionId: Long,
     val studentId: Long,
     val status: String, // HADIR, IZIN, SAKIT, ALPA
-    val note: String = ""
+    val note: String = "",
+    val disciplineNote: String = "",
+    val pointImpact: Int = 0
 )

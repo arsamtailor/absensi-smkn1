@@ -23,5 +23,9 @@ data class AttendanceSession(
     val date: String, // YYYY-MM-DD
     val subject: String,
     val notes: String = "",
+    val teachingTopic: String = "",
+    val teachingNotes: String = "",
+    val academicYear: String = "2025/2026",
+    val semester: String = "Ganjil",
     val timestamp: Long = System.currentTimeMillis()
 )

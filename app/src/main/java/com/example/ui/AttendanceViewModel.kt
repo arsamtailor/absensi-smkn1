@@ -72,11 +72,23 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     private val _attendanceNotes = MutableStateFlow("")
     val attendanceNotes: StateFlow<String> = _attendanceNotes.asStateFlow()
 
+    private val _attendanceTeachingTopic = MutableStateFlow("")
+    val attendanceTeachingTopic: StateFlow<String> = _attendanceTeachingTopic.asStateFlow()
+
+    private val _attendanceTeachingNotes = MutableStateFlow("")
+    val attendanceTeachingNotes: StateFlow<String> = _attendanceTeachingNotes.asStateFlow()
+
     private val _studentStatusMap = MutableStateFlow<Map<Long, String>>(emptyMap())
     val studentStatusMap: StateFlow<Map<Long, String>> = _studentStatusMap.asStateFlow()
 
     private val _studentNoteMap = MutableStateFlow<Map<Long, String>>(emptyMap())
     val studentNoteMap: StateFlow<Map<Long, String>> = _studentNoteMap.asStateFlow()
+
+    private val _studentDisciplineNoteMap = MutableStateFlow<Map<Long, String>>(emptyMap())
+    val studentDisciplineNoteMap: StateFlow<Map<Long, String>> = _studentDisciplineNoteMap.asStateFlow()
+
+    private val _studentPointImpactMap = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    val studentPointImpactMap: StateFlow<Map<Long, Int>> = _studentPointImpactMap.asStateFlow()
 
     private val _editingSessionId = MutableStateFlow<Long?>(null)
     val editingSessionId: StateFlow<Long?> = _editingSessionId.asStateFlow()
@@ -101,6 +113,65 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _reportSelectedSubject = MutableStateFlow<String>("Semua Mapel")
     val reportSelectedSubject: StateFlow<String> = _reportSelectedSubject.asStateFlow()
+
+    // Master Jurusan Management
+    private fun loadMajorsFromPrefs(): List<String> {
+        val saved = prefs.getString("all_majors", null)
+        if (saved.isNullOrBlank()) {
+            return listOf("AKL", "MPLB")
+        }
+        return saved.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    private val _majorsList = MutableStateFlow<List<String>>(loadMajorsFromPrefs())
+    val majorsList: StateFlow<List<String>> = _majorsList.asStateFlow()
+
+    fun addMajor(newMajor: String) {
+        val trimmed = newMajor.trim().uppercase()
+        if (trimmed.isBlank()) return
+        val current = _majorsList.value.toMutableList()
+        if (!current.contains(trimmed)) {
+            current.add(trimmed)
+            _majorsList.value = current
+            prefs.edit().putString("all_majors", current.joinToString(",")).apply()
+            viewModelScope.launch { _snackbarMessage.emit("Jurusan $trimmed berhasil ditambahkan.") }
+        } else {
+            viewModelScope.launch { _snackbarMessage.emit("Jurusan $trimmed sudah ada.") }
+        }
+    }
+
+    fun editMajor(oldMajor: String, newMajor: String) {
+        val trimmed = newMajor.trim().uppercase()
+        if (trimmed.isBlank() || oldMajor == trimmed) return
+        val current = _majorsList.value.toMutableList()
+        val index = current.indexOf(oldMajor)
+        if (index != -1) {
+            current[index] = trimmed
+            _majorsList.value = current
+            prefs.edit().putString("all_majors", current.joinToString(",")).apply()
+
+            viewModelScope.launch {
+                val classesToUpdate = allClasses.value.filter { it.major.equals(oldMajor, ignoreCase = true) }
+                classesToUpdate.forEach { cg ->
+                    repository.updateClass(cg.copy(major = trimmed))
+                }
+                _snackbarMessage.emit("Jurusan $oldMajor diubah menjadi $trimmed.")
+            }
+        }
+    }
+
+    fun deleteMajor(majorToDelete: String) {
+        val current = _majorsList.value.toMutableList()
+        if (current.size <= 1) {
+            viewModelScope.launch { _snackbarMessage.emit("Minimal harus ada 1 jurusan terdaftar.") }
+            return
+        }
+        if (current.remove(majorToDelete)) {
+            _majorsList.value = current
+            prefs.edit().putString("all_majors", current.joinToString(",")).apply()
+            viewModelScope.launch { _snackbarMessage.emit("Jurusan $majorToDelete berhasil dihapus.") }
+        }
+    }
 
     init {
         viewModelScope.launch {
@@ -136,31 +207,78 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         val raw = _teacherSubject.value
         val items = raw.split(",", ";", "\n", "•", "/")
             .map { it.trim() }
-            .filter { it.isNotBlank() }
-        return if (items.isEmpty()) listOf("Absensi Harian") else items
+            .filter { it.isNotBlank() && !it.startsWith("Guru Pengampu", ignoreCase = true) }
+            .distinct()
+
+        if (items.isNotEmpty()) {
+            return items
+        }
+
+        val scheduleSubjects = allSchedules.value.map { it.subject.trim() }.filter { it.isNotBlank() }.distinct()
+        if (scheduleSubjects.isNotEmpty()) {
+            return scheduleSubjects
+        }
+
+        return listOf("Akuntansi Keuangan", "Praktikum Akuntansi Perusahaan", "Otomatisasi Tata Kelola Perkantoran", "Matematika", "Bahasa Indonesia", "Bahasa Inggris")
+    }
+
+    fun addTeacherSubject(newSubject: String) {
+        val trimmed = newSubject.trim()
+        if (trimmed.isBlank()) return
+        val currentSubjects = getTeacherSubjectList().toMutableList()
+        if (!currentSubjects.contains(trimmed)) {
+            currentSubjects.add(trimmed)
+            updateTeacherProfile(
+                name = _teacherName.value,
+                nip = _teacherNip.value,
+                subject = currentSubjects.joinToString(", "),
+                school = _schoolName.value
+            )
+        }
+    }
+
+    fun removeTeacherSubject(subjectToRemove: String) {
+        val trimmed = subjectToRemove.trim()
+        val currentSubjects = getTeacherSubjectList().toMutableList()
+        currentSubjects.remove(trimmed)
+        val newSubjectStr = if (currentSubjects.isEmpty()) "Absensi Harian" else currentSubjects.joinToString(", ")
+        updateTeacherProfile(
+            name = _teacherName.value,
+            nip = _teacherNip.value,
+            subject = newSubjectStr,
+            school = _schoolName.value
+        )
     }
 
     fun selectClassForAttendance(classGroup: ClassGroup) {
         _selectedClassForAttendance.value = classGroup
         _editingSessionId.value = null
         _attendanceNotes.value = ""
+        _attendanceTeachingTopic.value = ""
+        _attendanceTeachingNotes.value = ""
         _studentStatusMap.value = emptyMap()
         _studentNoteMap.value = emptyMap()
+        _studentDisciplineNoteMap.value = emptyMap()
+        _studentPointImpactMap.value = emptyMap()
 
         val todayDay = getTodayIndonesianDayName()
-        val todaySchedules = allSchedules.value.filter {
-            it.dayOfWeek.equals(todayDay, ignoreCase = true) &&
-                    (it.className.contains(classGroup.name, ignoreCase = true) || classGroup.name.contains(it.className, ignoreCase = true))
+        val classSchedules = allSchedules.value.filter {
+            it.className.contains(classGroup.name, ignoreCase = true) || classGroup.name.contains(it.className, ignoreCase = true)
+        }
+        val todaySchedules = classSchedules.filter {
+            it.dayOfWeek.equals(todayDay, ignoreCase = true)
         }
 
         if (todaySchedules.isNotEmpty()) {
             val matchedSchedule = todaySchedules.first()
             _autoDetectedScheduleSubject.value = matchedSchedule.subject
             _attendanceSubject.value = matchedSchedule.subject
+        } else if (classSchedules.isNotEmpty()) {
+            _autoDetectedScheduleSubject.value = null
+            _attendanceSubject.value = classSchedules.first().subject
         } else {
             _autoDetectedScheduleSubject.value = null
-            val teacherSubjects = getTeacherSubjectList()
-            _attendanceSubject.value = if (teacherSubjects.isNotEmpty()) teacherSubjects.first() else "Absensi Harian"
+            _attendanceSubject.value = ""
         }
 
         viewModelScope.launch {
@@ -184,13 +302,19 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 _attendanceDate.value = session.date
                 _attendanceSubject.value = session.subject
                 _attendanceNotes.value = session.notes
+                _attendanceTeachingTopic.value = session.teachingTopic
+                _attendanceTeachingNotes.value = session.teachingNotes
 
                 val records = repository.getRecordsForSessionList(session.id)
                 val statusMap = records.associate { it.studentId to it.status }
                 val noteMap = records.associate { it.studentId to it.note }
+                val discNoteMap = records.associate { it.studentId to it.disciplineNote }
+                val pointImpactMap = records.associate { it.studentId to it.pointImpact }
 
                 _studentStatusMap.value = statusMap
                 _studentNoteMap.value = noteMap
+                _studentDisciplineNoteMap.value = discNoteMap
+                _studentPointImpactMap.value = pointImpactMap
 
                 repository.getStudentsForClass(classGroup.id).collect { students ->
                     _classStudentsForAttendance.value = students
@@ -211,6 +335,16 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         _studentNoteMap.value = updated
     }
 
+    fun updateStudentDisciplineNote(studentId: Long, note: String, pointImpact: Int = 0) {
+        val updatedNoteMap = _studentDisciplineNoteMap.value.toMutableMap()
+        updatedNoteMap[studentId] = note
+        _studentDisciplineNoteMap.value = updatedNoteMap
+
+        val updatedPointMap = _studentPointImpactMap.value.toMutableMap()
+        updatedPointMap[studentId] = pointImpact
+        _studentPointImpactMap.value = updatedPointMap
+    }
+
     fun markAllStudents(status: String) {
         val students = _classStudentsForAttendance.value
         val updated = students.associate { it.id to status }
@@ -229,6 +363,78 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         _attendanceNotes.value = notes
     }
 
+    fun setAttendanceTeachingTopic(topic: String) {
+        _attendanceTeachingTopic.value = topic
+    }
+
+    fun setAttendanceTeachingNotes(notes: String) {
+        _attendanceTeachingNotes.value = notes
+    }
+
+    fun generateWhatsAppSummaryMessage(
+        overrideClassName: String? = null,
+        overrideDateStr: String? = null,
+        overrideSubjectStr: String? = null,
+        overrideTopicStr: String? = null,
+        overrideStudents: List<Student>? = null,
+        overrideStatusMap: Map<Long, String>? = null,
+        overrideNoteMap: Map<Long, String>? = null
+    ): String {
+        val className = overrideClassName ?: _selectedClassForAttendance.value?.name ?: "Kelas"
+        val dateStr = overrideDateStr ?: _attendanceDate.value
+        val subjectName = overrideSubjectStr ?: _attendanceSubject.value
+        val teachingTopicStr = overrideTopicStr ?: _attendanceTeachingTopic.value
+        val studentsList = overrideStudents ?: _classStudentsForAttendance.value
+        val statusMapData = overrideStatusMap ?: _studentStatusMap.value
+        val noteMapData = overrideNoteMap ?: _studentNoteMap.value
+
+        val teacherNameStr = _teacherName.value
+        val schoolNameStr = _schoolName.value
+
+        val totalHadir = studentsList.count { (statusMapData[it.id] ?: "HADIR").equals("HADIR", true) }
+        val totalIzin = studentsList.count { (statusMapData[it.id] ?: "HADIR").equals("IZIN", true) }
+        val totalSakit = studentsList.count { (statusMapData[it.id] ?: "HADIR").equals("SAKIT", true) }
+        val totalAlpa = studentsList.count { (statusMapData[it.id] ?: "HADIR").equals("ALPA", true) }
+
+        val absentStudents = studentsList.filter {
+            val st = statusMapData[it.id] ?: "HADIR"
+            st.equals("IZIN", true) || st.equals("SAKIT", true) || st.equals("ALPA", true)
+        }
+
+        val sb = StringBuilder()
+        sb.append("📋 *REKAP PRESENSI KELAS*\n")
+        if (schoolNameStr.isNotBlank()) sb.append("🏫 *${schoolNameStr.trim()}*\n")
+        sb.append("🏫 Kelas: *${className}*\n")
+        sb.append("📅 Tanggal: *${dateStr}*\n")
+        sb.append("📚 Mata Pelajaran: *${subjectName}*\n")
+        if (teacherNameStr.isNotBlank()) sb.append("👨‍🏫 Guru: *${teacherNameStr.trim()}*\n")
+        sb.append("\n📊 *RINGKASAN KEHADIRAN:*\n")
+        sb.append("• Hadir: $totalHadir siswa\n")
+        sb.append("• Sakit: $totalSakit siswa\n")
+        sb.append("• Izin: $totalIzin siswa\n")
+        sb.append("• Alpa (Tanpa Ket): $totalAlpa siswa\n")
+        sb.append("• Total Siswa: ${studentsList.size} siswa\n")
+
+        if (teachingTopicStr.isNotBlank()) {
+            sb.append("\n📖 *Jurnal / Materi Pembelajaran:* \n$teachingTopicStr\n")
+        }
+
+        if (absentStudents.isNotEmpty()) {
+            sb.append("\n⚠️ *DAFTAR SISWA TIDAK HADIR / KETERANGAN:*\n")
+            absentStudents.forEachIndexed { idx, st ->
+                val stStatus = statusMapData[st.id] ?: "HADIR"
+                val stNote = noteMapData[st.id] ?: ""
+                val noteDesc = if (stNote.isNotBlank()) " ($stNote)" else ""
+                sb.append("${idx + 1}. *${st.name}* -> [ $stStatus ]$noteDesc\n")
+            }
+        } else {
+            sb.append("\n✨ *Alhamdulillah, seluruh siswa HADIR LENGKAP (100%)!*\n")
+        }
+
+        sb.append("\n_Pesan ini dikirim otomatis via Aplikasi Presensi Guru Offline._")
+        return sb.toString()
+    }
+
     fun saveAttendanceSession(onSuccess: () -> Unit) {
         val classGroup = _selectedClassForAttendance.value ?: return
         val students = _classStudentsForAttendance.value
@@ -238,29 +444,51 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         viewModelScope.launch {
+            val finalSubject = _attendanceSubject.value.ifBlank { "Absensi Harian" }
+            addTeacherSubject(finalSubject)
+
             val session = AttendanceSession(
                 id = _editingSessionId.value ?: 0,
                 classId = classGroup.id,
                 date = _attendanceDate.value,
-                subject = _attendanceSubject.value.ifBlank { "Absensi Harian" },
-                notes = _attendanceNotes.value
+                subject = finalSubject,
+                notes = _attendanceNotes.value,
+                teachingTopic = _attendanceTeachingTopic.value,
+                teachingNotes = _attendanceTeachingNotes.value,
+                academicYear = _activeAcademicYear.value,
+                semester = _activeSemester.value
             )
 
             val statusMap = _studentStatusMap.value
             val noteMap = _studentNoteMap.value
+            val discNoteMap = _studentDisciplineNoteMap.value
+            val pointImpactMap = _studentPointImpactMap.value
 
             val records = students.map { st ->
                 AttendanceRecord(
                     sessionId = 0,
                     studentId = st.id,
                     status = statusMap[st.id] ?: "HADIR",
-                    note = noteMap[st.id] ?: ""
+                    note = noteMap[st.id] ?: "",
+                    disciplineNote = discNoteMap[st.id] ?: "",
+                    pointImpact = pointImpactMap[st.id] ?: 0
                 )
+            }
+
+            // Update student discipline points if point impacts were assigned
+            students.forEach { st ->
+                val impact = pointImpactMap[st.id] ?: 0
+                val discNote = discNoteMap[st.id] ?: ""
+                if (impact != 0 || discNote.isNotBlank()) {
+                    val newPoints = (st.disciplinePoints + impact).coerceIn(0, 100)
+                    val newNotes = if (discNote.isNotBlank()) "${st.disciplineNotes}\n[${_attendanceDate.value}] $discNote ($impact Poin)".trim() else st.disciplineNotes
+                    repository.updateStudent(st.copy(disciplinePoints = newPoints, disciplineNotes = newNotes))
+                }
             }
 
             repository.saveAttendanceSession(session, records)
             refreshCriticalAlpaStudents()
-            _snackbarMessage.emit("Absensi berhasil disimpan!")
+            _snackbarMessage.emit("Absensi & Jurnal Mengajar berhasil disimpan secara offline!")
             onSuccess()
         }
     }
@@ -361,6 +589,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         isAlarmEnabled: Boolean = true
     ) {
         if (className.isBlank() || subject.isBlank()) return
+        addTeacherSubject(subject.trim())
         viewModelScope.launch {
             val schedule = com.example.data.model.TeachingSchedule(
                 id = id,
@@ -437,6 +666,12 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     private val _schoolName = MutableStateFlow(prefs.getString("school_name", "SMKN 1 Cirinten") ?: "SMKN 1 Cirinten")
     val schoolName: StateFlow<String> = _schoolName.asStateFlow()
 
+    private val _activeAcademicYear = MutableStateFlow(prefs.getString("active_academic_year", "2025/2026") ?: "2025/2026")
+    val activeAcademicYear: StateFlow<String> = _activeAcademicYear.asStateFlow()
+
+    private val _activeSemester = MutableStateFlow(prefs.getString("active_semester", "Ganjil") ?: "Ganjil")
+    val activeSemester: StateFlow<String> = _activeSemester.asStateFlow()
+
     fun updateTeacherProfile(name: String, nip: String, subject: String, school: String) {
         prefs.edit()
             .putString("teacher_name", name)
@@ -452,6 +687,34 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
 
         viewModelScope.launch {
             _snackbarMessage.emit("Profil Guru berhasil diperbarui.")
+        }
+    }
+
+    fun updateActiveAcademicPeriod(year: String, semester: String) {
+        prefs.edit()
+            .putString("active_academic_year", year)
+            .putString("active_semester", semester)
+            .apply()
+
+        _activeAcademicYear.value = year
+        _activeSemester.value = semester
+
+        viewModelScope.launch {
+            _snackbarMessage.emit("Tahun Ajaran ($year) & Semester ($semester) diaktifkan!")
+        }
+    }
+
+    fun archiveAcademicYearAndSwitch(newYear: String, newSemester: String) {
+        prefs.edit()
+            .putString("active_academic_year", newYear)
+            .putString("active_semester", newSemester)
+            .apply()
+
+        _activeAcademicYear.value = newYear
+        _activeSemester.value = newSemester
+
+        viewModelScope.launch {
+            _snackbarMessage.emit("Berhasil ganti ke TA $newYear ($newSemester)! Data semester lalu tersimpan rapi di Arsip.")
         }
     }
 

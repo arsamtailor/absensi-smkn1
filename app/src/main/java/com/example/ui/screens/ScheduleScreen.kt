@@ -34,15 +34,16 @@ import com.example.util.AlarmUtil
 fun ScheduleScreen(
     viewModel: AttendanceViewModel,
     onStartTakeAttendanceForSchedule: (className: String, subject: String) -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val allSchedules by viewModel.allSchedules.collectAsState()
     val allClasses by viewModel.allClasses.collectAsState()
+    val schoolName by viewModel.schoolName.collectAsState()
     val context = LocalContext.current
 
     var selectedDayFilter by remember { mutableStateOf("SEMUA") }
-    var showAddScheduleDialog by remember { mutableStateOf(false) }
-    var scheduleToEdit by remember { mutableStateOf<TeachingSchedule?>(null) }
+    var showSettingsPromptDialog by remember { mutableStateOf(false) }
 
     val daysList = listOf("SEMUA", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu")
 
@@ -57,7 +58,7 @@ fun ScheduleScreen(
                 title = {
                     Column {
                         Text("Jadwal Mengajar & Alarm", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("SMKN 1 Cirinten • AKL & MPLB", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${schoolName.ifBlank { "SMKN 1 Cirinten" }} • AKL & MPLB", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 actions = {
@@ -75,19 +76,6 @@ fun ScheduleScreen(
                 )
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    scheduleToEdit = null
-                    showAddScheduleDialog = true
-                },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
-                modifier = Modifier.testTag("add_schedule_fab")
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah Jadwal")
-            }
-        },
         modifier = modifier
     ) { innerPadding ->
         Column(
@@ -95,53 +83,59 @@ fun ScheduleScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Active Class Bell Banner
+            // Compact Alarm Bell & Master Lock Strip
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(28.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Timer, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Default.Timer, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             }
                         }
                         Column {
-                            Text("Alarm Bell Jam Mengajar", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Text("Bunyikan bel saat Waktu Masuk & Habis", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Alarm Bel Jam Mengajar", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Bunyikan bel saat waktu masuk & habis kelas", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         FilledTonalButton(
                             onClick = { AlarmUtil.playBellAlarm(context, isStart = true) },
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
                         ) {
                             Text("🔊 Masuk", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         Button(
                             onClick = { AlarmUtil.playBellAlarm(context, isStart = false) },
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.height(30.dp)
                         ) {
                             Text("🔔 Habis", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
@@ -186,23 +180,42 @@ fun ScheduleScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
-                            onClick = {
-                                scheduleToEdit = null
-                                showAddScheduleDialog = true
-                            }
+                            onClick = onOpenSettings
                         ) {
-                            Text("Tambah Jadwal Baru")
+                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Atur Jadwal di Master Data")
                         }
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
                 ) {
+                    // Header Column Table Row
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("HARI & WAKTU", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White, modifier = Modifier.weight(1.1f))
+                                Text("MAPEL & KELAS", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White, modifier = Modifier.weight(1.4f))
+                                Text("AKSI PRESENSI", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White, modifier = Modifier.weight(1.1f))
+                            }
+                        }
+                    }
+
                     items(filteredSchedules) { schedule ->
-                        ScheduleCard(
+                        ScheduleColumnCard(
                             schedule = schedule,
                             onToggleAlarm = { viewModel.toggleScheduleAlarm(schedule) },
                             onPlayStartAlarm = { AlarmUtil.playBellAlarm(context, isStart = true) },
@@ -210,13 +223,7 @@ fun ScheduleScreen(
                             onStartAttendance = {
                                 onStartTakeAttendanceForSchedule(schedule.className, schedule.subject)
                             },
-                            onEdit = {
-                                scheduleToEdit = schedule
-                                showAddScheduleDialog = true
-                            },
-                            onDelete = {
-                                viewModel.deleteSchedule(schedule)
-                            }
+                            onOpenSettings = onOpenSettings
                         )
                     }
                 }
@@ -224,177 +231,222 @@ fun ScheduleScreen(
         }
     }
 
-    if (showAddScheduleDialog) {
-        AddEditScheduleDialog(
-            schedule = scheduleToEdit,
-            allClasses = allClasses,
-            onDismiss = { showAddScheduleDialog = false },
-            onSave = { id, day, className, subject, startTime, endTime, room, isAlarm ->
-                viewModel.addOrUpdateSchedule(id, day, className, subject, startTime, endTime, room, isAlarm)
-                showAddScheduleDialog = false
+    if (showSettingsPromptDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsPromptDialog = false },
+            icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Master Jadwal Mengajar", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Penambahan, pengeditan, dan penghapusan jadwal mengajar dikelola secara terpusat di menu Pengaturan Master Data.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSettingsPromptDialog = false
+                        onOpenSettings()
+                    }
+                ) {
+                    Text("Buka Pengaturan Master Data")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSettingsPromptDialog = false }) {
+                    Text("Tutup")
+                }
             }
         )
     }
 }
 
 @Composable
-fun ScheduleCard(
+fun ScheduleColumnCard(
     schedule: TeachingSchedule,
     onToggleAlarm: () -> Unit,
     onPlayStartAlarm: () -> Unit,
     onPlayEndAlarm: () -> Unit,
     onStartAttendance: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpenSettings: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // KOLOM 1: Hari & Waktu
+                Column(
+                    modifier = Modifier.weight(1.1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Text(
                             text = schedule.dayOfWeek,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
                         Text(
-                            text = "${schedule.startTime} - ${schedule.endTime}",
+                            text = "${schedule.startTime} -\n${schedule.endTime}",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 11.sp,
+                            lineHeight = 13.sp
+                        )
+                    }
+
+                    if (schedule.room.isNotBlank()) {
+                        Text(
+                            text = "📍 ${schedule.room}",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
                         )
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onToggleAlarm, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = if (schedule.isAlarmEnabled) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsOff,
-                            contentDescription = "Toggle Alarm",
-                            tint = if (schedule.isAlarmEnabled) MaterialTheme.colorScheme.primary else Color.Gray,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Box {
-                        IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Menu", modifier = Modifier.size(20.dp))
-                        }
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Edit Jadwal") },
-                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                                onClick = { showMenu = false; onEdit() }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Hapus Jadwal", color = MaterialTheme.colorScheme.error) },
-                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                onClick = { showMenu = false; onDelete() }
-                            )
-                        }
-                    }
-                }
-            }
+                Divider(
+                    modifier = Modifier
+                        .height(65.dp)
+                        .width(1.dp)
+                        .padding(horizontal = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
 
-            HorizontalDivider()
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
+                // KOLOM 2: Mapel & Kelas
+                Column(
+                    modifier = Modifier
+                        .weight(1.4f)
+                        .padding(horizontal = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = schedule.subject,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "Kelas: ${schedule.className} • ${schedule.room}",
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        lineHeight = 16.sp,
+                        maxLines = 2
                     )
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Text(
+                            text = "Kelas: ${schedule.className}",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
-                Button(
-                    onClick = onStartAttendance,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(Icons.Default.Assignment, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Isi Absen", fontSize = 12.sp)
-                }
-            }
+                Divider(
+                    modifier = Modifier
+                        .height(65.dp)
+                        .width(1.dp)
+                        .padding(horizontal = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
 
-            // Bell Action Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onPlayStartAlarm,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 4.dp)
+                // KOLOM 3: Aksi Presensi & Bell
+                Column(
+                    modifier = Modifier.weight(1.1f),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Bell Waktu Masuk", fontSize = 11.sp)
-                }
+                    Button(
+                        onClick = onStartAttendance,
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Assignment, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Isi Absen", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
 
-                OutlinedButton(
-                    onClick = onPlayEndAlarm,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Bell Waktu Habis", fontSize = 11.sp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        IconButton(onClick = onToggleAlarm, modifier = Modifier.size(26.dp)) {
+                            Icon(
+                                imageVector = if (schedule.isAlarmEnabled) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsOff,
+                                contentDescription = "Toggle Alarm",
+                                tint = if (schedule.isAlarmEnabled) MaterialTheme.colorScheme.primary else Color.Gray,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            FilledTonalIconButton(onClick = onPlayStartAlarm, modifier = Modifier.size(26.dp)) {
+                                Text("🔊", fontSize = 11.sp)
+                            }
+                            FilledTonalIconButton(onClick = onPlayEndAlarm, modifier = Modifier.size(26.dp)) {
+                                Text("🔔", fontSize = 11.sp)
+                            }
+                        }
+
+                        Box {
+                            IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(16.dp))
+                            }
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Kelola Jadwal di Pengaturan", fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onOpenSettings()
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditScheduleDialog(
     schedule: TeachingSchedule?,
     allClasses: List<ClassGroup>,
+    masterSubjects: List<String> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (id: Long, day: String, className: String, subject: String, startTime: String, endTime: String, room: String, isAlarm: Boolean) -> Unit
 ) {
     var dayOfWeek by remember { mutableStateOf(schedule?.dayOfWeek ?: "Senin") }
     var className by remember { mutableStateOf(schedule?.className ?: (allClasses.firstOrNull()?.name ?: "X AKL 1")) }
-    var subject by remember { mutableStateOf(schedule?.subject ?: "Akuntansi Keuangan") }
+    
+    val availableSubjects = remember(masterSubjects) {
+        if (masterSubjects.isNotEmpty()) masterSubjects else listOf("Akuntansi Keuangan", "Praktikum Akuntansi", "Otomatisasi Perkantoran", "Matematika", "Bahasa Indonesia")
+    }
+
+    var subject by remember { mutableStateOf(schedule?.subject ?: availableSubjects.first()) }
+    var subjectDropdownExpanded by remember { mutableStateOf(false) }
+
     var startTime by remember { mutableStateOf(schedule?.startTime ?: "07:00") }
     var endTime by remember { mutableStateOf(schedule?.endTime ?: "09:00") }
     var room by remember { mutableStateOf(schedule?.room ?: "Lab AKL") }
@@ -404,7 +456,7 @@ fun AddEditScheduleDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (schedule == null) "Tambah Jadwal Mengajar" else "Edit Jadwal Mengajar", fontWeight = FontWeight.Bold) },
+        title = { Text(if (schedule == null) "Tambah Master Jadwal" else "Edit Master Jadwal", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column {
@@ -423,7 +475,7 @@ fun AddEditScheduleDialog(
                 }
 
                 Column {
-                    Text("Pilih Kelas:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Pilih Kelas (dari Master Kelas):", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(allClasses.size) { index ->
@@ -437,13 +489,58 @@ fun AddEditScheduleDialog(
                     }
                 }
 
-                OutlinedTextField(
-                    value = subject,
-                    onValueChange = { subject = it },
-                    label = { Text("Mata Pelajaran") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                Column {
+                    Text("Pilih Mapel (dari Master Mapel):", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ExposedDropdownMenuBox(
+                        expanded = subjectDropdownExpanded,
+                        onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = subject,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Mata Pelajaran") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded)
+                            },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                            singleLine = true
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = subjectDropdownExpanded,
+                            onDismissRequest = { subjectDropdownExpanded = false }
+                        ) {
+                            availableSubjects.forEach { subName ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Book,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(subName, fontWeight = if (subject == subName) FontWeight.Bold else FontWeight.Normal)
+                                        }
+                                    },
+                                    onClick = {
+                                        subject = subName
+                                        subjectDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(

@@ -195,7 +195,7 @@ fun SettingsSecurityDialog(
                         Column {
                             Text("Aplikasi Presensi Siswa", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             Text("Developed by arsam © 2026", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                            Text("Versi 1.0.0 • Hak Cipta Dilindungi", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Versi 1.1.0", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

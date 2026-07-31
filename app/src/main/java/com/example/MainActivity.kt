@@ -188,14 +188,16 @@ fun AttendanceApp(viewModel: AttendanceViewModel) {
                                 viewModel.setAttendanceSubject(subject)
                             }
                             currentDestination = AppDestination.TAKE_ATTENDANCE
-                        }
+                        },
+                        onOpenSettings = { currentDestination = AppDestination.SETTINGS }
                     )
                 }
 
                 AppDestination.CLASSES -> {
                     ClassManagementScreen(
                         viewModel = viewModel,
-                        onStartTakeAttendance = onStartAttendanceForClass
+                        onStartTakeAttendance = onStartAttendanceForClass,
+                        onOpenSettings = { currentDestination = AppDestination.SETTINGS }
                     )
                 }
 
@@ -208,7 +210,8 @@ fun AttendanceApp(viewModel: AttendanceViewModel) {
                 AppDestination.TAKE_ATTENDANCE -> {
                     TakeAttendanceScreen(
                         viewModel = viewModel,
-                        onNavigateBack = { currentDestination = AppDestination.HOME }
+                        onNavigateBack = { currentDestination = AppDestination.HOME },
+                        onOpenSettings = { currentDestination = AppDestination.SETTINGS }
                     )
                 }
             }

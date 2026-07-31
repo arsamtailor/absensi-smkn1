@@ -56,9 +56,22 @@ object PdfGuideGenerator {
         canvas.drawText("Presensi & Absensi Siswa Digital - $schoolName", 35f, 65f, subTitlePaint)
         canvas.drawText("Dokumen Panduan Operasional Guru & Wali Kelas", 35f, 82f, bodyPaint)
 
-        y = 115f
+        y = 105f
+
+        // Draw Banner Illustration
+        try {
+            val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, com.example.R.drawable.img_guide_banner)
+            if (bitmap != null) {
+                val destRect = android.graphics.RectF(35f, y, pageWidth - 35f, y + 80f)
+                canvas.drawBitmap(bitmap, null, destRect, null)
+                y += 90f
+            }
+        } catch (e: Exception) {
+            // fallback if bitmap reading fails
+        }
+
         canvas.drawText("1. PETUNJUK INSTALASI APK DI HP ANDROID", 35f, y, sectionPaint)
-        y += 20f
+        y += 18f
 
         val step1 = listOf(
             "• Langkah 1: Simpan file 'app-release.apk' ke penyimpanan HP Android Anda.",
@@ -138,12 +151,16 @@ object PdfGuideGenerator {
             "   Fitur AI di tab Laporan menganalisis secara otomatis tingkat kehadiran kelas,",
             "   mendeteksi siswa rawan alpa (>=3 Alpa), serta memberikan saran tindakan konkrit untuk Wali Kelas.",
             "",
-            "E. BACKUP & RESTORE DATABASE LOKAL (OFFLINE FIRST)",
-            "   Seluruh data tersimpan aman di HP tanpa perlu jaringan internet.",
-            "   Tersedia fitur 'Cadangkan Database (JSON)' dan 'Pemulihan Database' untuk mengamankan data saat ganti HP."
+            "E. PENGARSIPAN SEMESTER & TAHUN AJARAN BARU",
+            "   Saat pergantian semester/tahun ajaran, gunakan menu 'Arsip & Periode' di beranda utama.",
+            "   Data semester lama tersimpan rapi di database arsip dan dapat diakses di Laporan kapan saja.",
+            "",
+            "F. DETEKSI ALPA & SURAT PERINGATAN (SP)",
+            "   Sistem mendeteksi siswa dengan Alpa >= 3x secara otomatis.",
+            "   Guru/Wali Kelas dapat mencetak atau mengirimkan Surat Panggilan Orang Tua (SP) via WhatsApp."
         )
         features.forEach { line ->
-            if (line.startsWith("A.") || line.startsWith("B.") || line.startsWith("C.") || line.startsWith("D.") || line.startsWith("E.")) {
+            if (line.startsWith("A.") || line.startsWith("B.") || line.startsWith("C.") || line.startsWith("D.") || line.startsWith("E.") || line.startsWith("F.")) {
                 canvas.drawText(line, 40f, y, boldBodyPaint)
             } else {
                 canvas.drawText(line, 40f, y, bodyPaint)

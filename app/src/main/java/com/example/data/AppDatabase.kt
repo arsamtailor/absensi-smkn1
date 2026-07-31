@@ -22,7 +22,7 @@ import com.example.data.model.TeachingSchedule
         AttendanceRecord::class,
         TeachingSchedule::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

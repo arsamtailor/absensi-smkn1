@@ -96,7 +96,7 @@ object BackupManager {
         root.put("schedules", schedulesArray)
 
         root.put("exportedAt", System.currentTimeMillis())
-        root.put("appVersion", "1.0.0")
+        root.put("appVersion", "1.1.0")
 
         root.toString(2)
     }

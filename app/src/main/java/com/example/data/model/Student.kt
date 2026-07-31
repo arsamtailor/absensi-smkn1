@@ -23,5 +23,7 @@ data class Student(
     val nisn: String,
     val name: String,
     val gender: String = "L", // L or P
-    val phone: String = ""
+    val phone: String = "",
+    val disciplinePoints: Int = 100,
+    val disciplineNotes: String = ""
 )
