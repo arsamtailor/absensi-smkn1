@@ -253,6 +253,52 @@ private fun ProfileAndSecurityTab(viewModel: AttendanceViewModel) {
                 }
             }
         }
+
+        item {
+            val context = LocalContext.current
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Buku Panduan & Dokumentasi (PDF)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+
+                    Text(
+                        text = "Cetak atau simpan dokumen Buku Panduan Penggunaan Aplikasi lengkap dalam format PDF ke HP Anda.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Button(
+                        onClick = {
+                            com.example.util.PdfGuideGenerator.generateAndOpenManualPdf(
+                                context = context,
+                                teacherName = teacherName,
+                                schoolName = schoolName
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("download_pdf_manual_btn"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Unduh / Cetak Buku Panduan (PDF)")
+                    }
+                }
+            }
+        }
     }
 
     if (showPinDialog) {
