@@ -20,4 +20,7 @@ interface ClassGroupDao {
 
     @Delete
     suspend fun deleteClass(classGroup: ClassGroup)
+
+    @Query("DELETE FROM class_groups")
+    suspend fun deleteAllClasses()
 }

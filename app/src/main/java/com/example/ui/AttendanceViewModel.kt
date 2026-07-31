@@ -35,6 +35,8 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     private val db = AppDatabase.getDatabase(application)
     val repository = AttendanceRepository(db.classGroupDao(), db.studentDao(), db.attendanceDao(), db.scheduleDao())
 
+    private val prefs = application.getSharedPreferences("app_security_prefs", android.content.Context.MODE_PRIVATE)
+
     val allClasses: StateFlow<List<ClassGroup>> = repository.allClasses
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -102,7 +104,10 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         viewModelScope.launch {
-            repository.seedSampleDataIfEmpty()
+            val resetDone = prefs.getBoolean("data_reset_done", false)
+            if (!resetDone) {
+                repository.seedSampleDataIfEmpty()
+            }
             refreshCriticalAlpaStudents()
         }
     }
@@ -303,6 +308,41 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun importStudentsBatch(classId: Long, rawText: String, onComplete: (Int) -> Unit = {}) {
+        if (rawText.isBlank()) return
+        viewModelScope.launch {
+            val lines = rawText.split("\n", "\r\n")
+            var countInserted = 0
+            lines.forEach { line ->
+                val trimmed = line.trim()
+                if (trimmed.isNotBlank()) {
+                    val parts = trimmed.split(",", ";", "\t").map { it.trim() }
+                    val name = parts.getOrNull(0) ?: ""
+                    if (name.isNotBlank()) {
+                        val nisn = parts.getOrNull(1) ?: ""
+                        val genderRaw = parts.getOrNull(2)?.uppercase() ?: "L"
+                        val gender = if (genderRaw.startsWith("P") || genderRaw == "PEREMPUAN") "P" else "L"
+                        val phone = parts.getOrNull(3) ?: ""
+
+                        repository.insertStudent(
+                            Student(
+                                id = 0L,
+                                classId = classId,
+                                nisn = nisn,
+                                name = name,
+                                gender = gender,
+                                phone = phone
+                            )
+                        )
+                        countInserted++
+                    }
+                }
+            }
+            _snackbarMessage.emit("$countInserted siswa berhasil diimpor masal!")
+            onComplete(countInserted)
+        }
+    }
+
     fun deleteStudent(student: Student) {
         viewModelScope.launch {
             repository.deleteStudent(student)
@@ -385,8 +425,6 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    private val prefs = application.getSharedPreferences("app_security_prefs", android.content.Context.MODE_PRIVATE)
-
     private val _teacherName = MutableStateFlow(prefs.getString("teacher_name", "Ahmad Sanusi, S.Pd") ?: "Ahmad Sanusi, S.Pd")
     val teacherName: StateFlow<String> = _teacherName.asStateFlow()
 
@@ -461,6 +499,33 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 _snackbarMessage.emit("Gagal memulihkan data. Format file tidak valid.")
             }
             onResult(success)
+        }
+    }
+
+    fun quickUpdateStudentRecord(sessionId: Long, studentId: Long, newStatus: String, newNote: String) {
+        viewModelScope.launch {
+            repository.quickUpdateStudentRecord(sessionId, studentId, newStatus, newNote)
+            refreshCriticalAlpaStudents()
+            val currentClassId = _reportSelectedClassId.value
+            if (currentClassId != null) {
+                loadReportForClass(currentClassId, _reportPeriod.value, _reportSelectedSubject.value)
+            }
+            _snackbarMessage.emit("Presensi siswa berhasil dikoreksi!")
+        }
+    }
+
+    fun resetAllApplicationData() {
+        viewModelScope.launch {
+            prefs.edit().putBoolean("data_reset_done", true).apply()
+            repository.clearAllData()
+            _selectedClassForAttendance.value = null
+            _editingSessionId.value = null
+            _reportSelectedClassId.value = null
+            _reportSummaries.value = emptyList()
+            _criticalAlpaStudents.value = emptyList()
+            _studentStatusMap.value = emptyMap()
+            _studentNoteMap.value = emptyMap()
+            _snackbarMessage.emit("Seluruh data aplikasi berhasil dikosongkan. Siap untuk input kelas & siswa baru.")
         }
     }
 

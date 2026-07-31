@@ -43,6 +43,7 @@ fun ClassManagementScreen(
 
     var showAddStudentDialog by remember { mutableStateOf(false) }
     var studentToEdit by remember { mutableStateOf<Student?>(null) }
+    var showBulkImportDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -74,6 +75,12 @@ fun ClassManagementScreen(
                     } else {
                         val currentCls = selectedClass
                         if (currentCls != null) {
+                            IconButton(
+                                onClick = { showBulkImportDialog = true },
+                                modifier = Modifier.testTag("bulk_import_students_btn")
+                            ) {
+                                Icon(Icons.Default.GroupAdd, contentDescription = "Impor Masal")
+                            }
                             IconButton(
                                 onClick = { onStartTakeAttendance(currentCls) },
                                 modifier = Modifier.testTag("take_attendance_for_class_btn")
@@ -309,6 +316,18 @@ fun ClassManagementScreen(
                     phone = phone
                 )
                 showAddStudentDialog = false
+            }
+        )
+    }
+
+    if (showBulkImportDialog && activeClassForStudent != null) {
+        BulkImportStudentsDialog(
+            className = activeClassForStudent.name,
+            onDismiss = { showBulkImportDialog = false },
+            onImport = { rawText ->
+                viewModel.importStudentsBatch(activeClassForStudent.id, rawText) { _ ->
+                    showBulkImportDialog = false
+                }
             }
         )
     }
@@ -784,6 +803,74 @@ fun AddEditStudentDialog(
                 modifier = Modifier.testTag("save_student_btn")
             ) {
                 Text("Simpan")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal")
+            }
+        }
+    )
+}
+
+@Composable
+fun BulkImportStudentsDialog(
+    className: String,
+    onDismiss: () -> Unit,
+    onImport: (String) -> Unit
+) {
+    var rawText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.GroupAdd, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("Impor Siswa Masal - $className", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Tempel / ketik daftar siswa per baris:\n" +
+                            "Contoh:\n" +
+                            "Andi Pratama\n" +
+                            "Budi Santoso, 1002, L\n" +
+                            "Citra Dewi, 1003, P, 08123456",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = rawText,
+                    onValueChange = { rawText = it },
+                    placeholder = { Text("Ahmad Maulana\nBudi Santoso, 1002, L\nCitra Dewi, 1003, P") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .testTag("bulk_import_dialog_input"),
+                    maxLines = 15
+                )
+
+                val count = remember(rawText) {
+                    rawText.split("\n", "\r\n").count { it.isNotBlank() }
+                }
+
+                Text(
+                    "Total $count calon siswa terdeteksi",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onImport(rawText) },
+                enabled = rawText.isNotBlank(),
+                modifier = Modifier.testTag("submit_bulk_import_btn")
+            ) {
+                Text("Impor Sekarang")
             }
         },
         dismissButton = {

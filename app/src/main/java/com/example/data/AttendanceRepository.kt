@@ -72,6 +72,27 @@ class AttendanceRepository(
         attendanceDao.deleteSession(session)
     }
 
+    suspend fun quickUpdateStudentRecord(sessionId: Long, studentId: Long, newStatus: String, newNote: String) {
+        val records = attendanceDao.getRecordsForSessionList(sessionId)
+        val updatedRecords = records.map { rec ->
+            if (rec.studentId == studentId) {
+                rec.copy(status = newStatus, note = newNote)
+            } else {
+                rec
+            }
+        }
+        attendanceDao.deleteRecordsForSession(sessionId)
+        attendanceDao.insertRecords(updatedRecords)
+    }
+
+    suspend fun clearAllData() {
+        attendanceDao.deleteAllRecords()
+        attendanceDao.deleteAllSessions()
+        studentDao.deleteAllStudents()
+        classGroupDao.deleteAllClasses()
+        scheduleDao.deleteAllSchedules()
+    }
+
     suspend fun getStudentSummariesForClass(classId: Long, startDateFilter: String? = null, subjectFilter: String? = null): List<StudentSummary> {
         val students = studentDao.getStudentsByClassList(classId)
         val allSessionsForClass = attendanceDao.getSessionsByClass(classId).first()

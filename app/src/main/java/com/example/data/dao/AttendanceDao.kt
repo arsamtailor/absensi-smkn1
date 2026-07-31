@@ -39,4 +39,10 @@ interface AttendanceDao {
 
     @Query("SELECT * FROM attendance_records")
     fun getAllRecords(): Flow<List<AttendanceRecord>>
+
+    @Query("DELETE FROM attendance_sessions")
+    suspend fun deleteAllSessions()
+
+    @Query("DELETE FROM attendance_records")
+    suspend fun deleteAllRecords()
 }

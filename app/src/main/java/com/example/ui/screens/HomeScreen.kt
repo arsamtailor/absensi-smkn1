@@ -60,6 +60,7 @@ fun HomeScreen(
     var showQuickStartDialog by remember { mutableStateOf(false) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showCriticalAlpaDialog by remember { mutableStateOf(false) }
+    var showHistoryDialog by remember { mutableStateOf(false) }
 
     val currentDateStr = remember {
         val sdf = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID"))
@@ -99,7 +100,7 @@ fun HomeScreen(
                         onClick = onOpenSettings,
                         modifier = Modifier.testTag("open_settings_button")
                     ) {
-                        Icon(Icons.Default.Security, contentDescription = "Penyimpanan & Keamanan")
+                        Icon(Icons.Default.Settings, contentDescription = "Pengaturan & Master Data")
                     }
                     IconButton(
                         onClick = onNavigateToClasses,
@@ -357,12 +358,55 @@ fun HomeScreen(
                         onClick = onNavigateToClasses
                     )
                     StatMetricCard(
-                        title = "Sesi Presensi",
-                        value = "${allSessions.size}",
+                        title = "Histori Absen",
+                        value = "${allSessions.size} Sesi",
                         icon = Icons.Default.History,
                         modifier = Modifier.weight(1f),
-                        onClick = onNavigateToReports
+                        onClick = { showHistoryDialog = true }
                     )
+                }
+            }
+
+            // Quick Access History & Correction Card
+            item {
+                Card(
+                    onClick = { showHistoryDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("open_history_card"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(42.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.ManageHistory, contentDescription = null, tint = Color.White)
+                                }
+                            }
+                            Column {
+                                Text("Histori Absen (Harian & Mingguan)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text("Cek riwayat kemarin, tangani komplen & koreksi status", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+
+                        Icon(Icons.Default.ArrowForwardIos, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
 
@@ -705,6 +749,17 @@ fun HomeScreen(
             onSendWarningLetter = { info ->
                 sendWarningLetterViaWhatsApp(context, info, teacherName, teacherNip, schoolName)
             }
+        )
+    }
+
+    if (showHistoryDialog) {
+        AttendanceHistoryDialog(
+            viewModel = viewModel,
+            onEditSession = { session ->
+                viewModel.loadExistingSessionForEdit(session)
+                onEditSession(session)
+            },
+            onDismiss = { showHistoryDialog = false }
         )
     }
 }

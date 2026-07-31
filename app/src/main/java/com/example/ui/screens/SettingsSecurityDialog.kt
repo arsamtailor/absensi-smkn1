@@ -33,6 +33,8 @@ fun SettingsSecurityDialog(
 
     var showPinChangeDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
+    var showResetConfirmDialog by remember { mutableStateOf(false) }
+    var confirmResetText by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -140,7 +142,38 @@ fun SettingsSecurityDialog(
                     }
                 }
 
-                // Section 4: Developer Info
+                // Section 4: Reset Application Data (Empty App)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Riset Total Data Aplikasi", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.error)
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "Fitur ini akan menghapus seluruh data kelas, siswa, absensi, dan jadwal bawaan agar aplikasi benar-benar KOSONG.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Button(
+                                onClick = { showResetConfirmDialog = true },
+                                modifier = Modifier.fillMaxWidth().testTag("reset_app_data_btn"),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Riset Data Aplikasi (Kosongkan Total)")
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Section 5: Developer Info
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -192,6 +225,63 @@ fun SettingsSecurityDialog(
             onRestore = { jsonString ->
                 viewModel.restoreBackup(jsonString) {
                     showRestoreDialog = false
+                }
+            }
+        )
+    }
+
+    if (showResetConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showResetConfirmDialog = false
+                confirmResetText = ""
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Text("Konfirmasi Riset Data", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Tindakan ini akan menghapus SEMUA data kelas, daftar siswa, riwayat presensi, dan jadwal mengajar secara permanen.\n\n" +
+                        "Aplikasi akan dikosongkan total agar Anda dapat menginput kelas & siswa sekolah Anda secara segar tanpa membingungkan.\n\n" +
+                        "Ketik kata 'RISET' di bawah ini untuk mengonfirmasi:",
+                        fontSize = 12.sp
+                    )
+
+                    OutlinedTextField(
+                        value = confirmResetText,
+                        onValueChange = { confirmResetText = it },
+                        label = { Text("Ketik RISET") },
+                        placeholder = { Text("RISET") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("confirm_reset_input")
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.resetAllApplicationData()
+                        showResetConfirmDialog = false
+                        confirmResetText = ""
+                        onDismiss()
+                    },
+                    enabled = confirmResetText.trim().equals("RISET", ignoreCase = true) || confirmResetText.trim().equals("HAPUS", ignoreCase = true),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("execute_reset_app_btn")
+                ) {
+                    Text("Kosongkan Semua Data Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showResetConfirmDialog = false
+                    confirmResetText = ""
+                }) {
+                    Text("Batal")
                 }
             }
         )

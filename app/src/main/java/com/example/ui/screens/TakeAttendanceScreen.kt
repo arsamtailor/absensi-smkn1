@@ -231,40 +231,7 @@ fun TakeAttendanceScreen(
                                     }
                                 }
 
-                                OutlinedTextField(
-                                    value = subject,
-                                    onValueChange = { viewModel.setAttendanceSubject(it) },
-                                    label = { Text("Mata Pelajaran / Sesi") },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("attendance_subject_input"),
-                                    singleLine = true
-                                )
-
-                                if (teacherSubjects.isNotEmpty()) {
-                                    Text(
-                                        text = "Pilih Mapel Anda (Profil Guru):",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    androidx.compose.foundation.lazy.LazyRow(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        items(teacherSubjects.size) { index ->
-                                            val subName = teacherSubjects[index]
-                                            FilterChip(
-                                                selected = subject.equals(subName, ignoreCase = true),
-                                                onClick = { viewModel.setAttendanceSubject(subName) },
-                                                label = { Text(subName, fontSize = 11.sp) },
-                                                leadingIcon = {
-                                                    Icon(Icons.Default.Badge, contentDescription = null, modifier = Modifier.size(12.dp))
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                                var subjectDropdownExpanded by remember { mutableStateOf(false) }
 
                                 val classMajor = selectedClass?.major ?: "AKL"
                                 val presetSubjects = remember(classMajor) {
@@ -298,8 +265,61 @@ fun TakeAttendanceScreen(
                                     }
                                 }
 
+                                val allAvailableSubjects = remember(teacherSubjects, presetSubjects) {
+                                    (teacherSubjects + presetSubjects).distinct()
+                                }
+
+                                ExposedDropdownMenuBox(
+                                    expanded = subjectDropdownExpanded,
+                                    onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    OutlinedTextField(
+                                        value = subject,
+                                        onValueChange = { viewModel.setAttendanceSubject(it) },
+                                        label = { Text("Mata Pelajaran / Sesi (Pilih Dropdown)") },
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded)
+                                        },
+                                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor()
+                                            .testTag("attendance_subject_input"),
+                                        singleLine = true
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = subjectDropdownExpanded,
+                                        onDismissRequest = { subjectDropdownExpanded = false }
+                                    ) {
+                                        allAvailableSubjects.forEach { subName ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (teacherSubjects.contains(subName)) Icons.Default.Badge else Icons.Default.Book,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(16.dp),
+                                                            tint = MaterialTheme.colorScheme.primary
+                                                        )
+                                                        Text(subName, fontWeight = if (subject == subName) FontWeight.Bold else FontWeight.Normal)
+                                                    }
+                                                },
+                                                onClick = {
+                                                    viewModel.setAttendanceSubject(subName)
+                                                    subjectDropdownExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
                                 Text(
-                                    text = "Pilih Cepat Mapel Jurusan (${classMajor}):",
+                                    text = "Atau Pilih Cepat Mapel (${classMajor}):",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -308,8 +328,8 @@ fun TakeAttendanceScreen(
                                 androidx.compose.foundation.lazy.LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    items(presetSubjects.size) { index ->
-                                        val subName = presetSubjects[index]
+                                    items(allAvailableSubjects.size) { index ->
+                                        val subName = allAvailableSubjects[index]
                                         FilterChip(
                                             selected = subject.equals(subName, ignoreCase = true),
                                             onClick = { viewModel.setAttendanceSubject(subName) },

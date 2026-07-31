@@ -16,10 +16,12 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -58,6 +60,7 @@ enum class AppDestination(
     SCHEDULE("Jadwal", Icons.Filled.Schedule, Icons.Outlined.Schedule, "nav_schedule"),
     CLASSES("Kelas & Siswa", Icons.Filled.School, Icons.Outlined.School, "nav_classes"),
     REPORTS("Rekap", Icons.Filled.Assessment, Icons.Outlined.Assessment, "nav_reports"),
+    SETTINGS("Pengaturan", Icons.Filled.Settings, Icons.Outlined.Settings, "nav_settings"),
     TAKE_ATTENDANCE("Input Absensi", Icons.Filled.Home, Icons.Outlined.Home, "nav_attendance")
 }
 
@@ -116,7 +119,8 @@ fun AttendanceApp(viewModel: AttendanceViewModel) {
                         AppDestination.HOME,
                         AppDestination.SCHEDULE,
                         AppDestination.CLASSES,
-                        AppDestination.REPORTS
+                        AppDestination.REPORTS,
+                        AppDestination.SETTINGS
                     )
 
                     items.forEach { destination ->
@@ -159,7 +163,15 @@ fun AttendanceApp(viewModel: AttendanceViewModel) {
                         onNavigateToClasses = { currentDestination = AppDestination.CLASSES },
                         onNavigateToReports = { currentDestination = AppDestination.REPORTS },
                         onNavigateToSchedule = { currentDestination = AppDestination.SCHEDULE },
-                        onOpenSettings = { showSettingsDialog = true }
+                        onOpenSettings = { currentDestination = AppDestination.SETTINGS }
+                    )
+                }
+
+                AppDestination.SETTINGS -> {
+                    com.example.ui.screens.MasterDataSettingsScreen(
+                        viewModel = viewModel,
+                        onNavigateToClasses = { currentDestination = AppDestination.CLASSES },
+                        onNavigateToSchedule = { currentDestination = AppDestination.SCHEDULE }
                     )
                 }
 
